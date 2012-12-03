@@ -1,0 +1,27 @@
+{
+  "name": "Shrink to Player",
+  "version": "1.2.2",
+  "description": "Resizes the window to match a video on the page.",
+  "background_page": "background.html",
+  "page_action": {
+    "default_icon": "img/icon_new_19.png",
+    "popup": "popup.html"
+  },
+  "icons": {
+      "128": "img/icon_new_128.png",
+      "19": "img/icon_new_19.png",
+      "48": "img/icon_new_48.png"
+   },
+  "content_scripts": [
+    {
+        "matches": [
+            "http://*/*",
+            "https://*/*"
+        ],
+        "js": ["resizer.js"],
+        "run_at": "document_idle",
+        "all_frames": false
+    }
+  ],
+  "permissions": ["tabs"]
+}

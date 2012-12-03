@@ -1,0 +1,89 @@
+<html>
+<head>
+    <script src="mootools-1.2.5-core.js"></script>
+    <script src="mootools-1.2.4.4-more.js"></script>
+    <script type="text/javascript">
+        var objects = $H();
+        var old_sizes = $H();
+        // settings object:
+        // { restore: true/false, last_id: string }
+        // indexed by tab_id
+        var settings = $H();
+        
+        var curr_object = {};
+        function onRequest(request, sender, sendResponse) {
+            console.debug(request);
+            if (request.action == "show") {
+                objects.set(sender.tab.id, request.params[0]);
+                // Show the page action for the tab that the sender (content script)
+                // was on.
+                chrome.pageAction.show(sender.tab.id);
+                // Return nothing to let the connection be cleaned up.
+                var set = settings.get(sender.tab.id);
+                if(set) {
+                    if(set.restore) {
+                        resizeWindow(sender.tab.id, set.last_id);
+                    }
+                }
+                sendResponse({});
+            }
+        };
+        function sendGet(fn) {
+            chrome.tabs.getSelected(null, function(tab) {
+                console.debug("Sending 'get'");
+                chrome.tabs.sendRequest(tab.id, {
+                    action: "get"
+                }, function(response) {
+                    objects.set(tab.id, response);
+                    console.debug("Back from sending 'get'");
+                    fn();
+                });
+            });
+        }
+        function setObject() {
+            chrome.tabs.getSelected(null, function(tab) {
+                console.debug("Tab id: " + tab.id);
+                curr_object = objects.get(tab.id);
+            });
+        }
+        function generalResponseHandler(r) {
+            console.log(r);
+        }        
+        function resetTabSize(tab_id) {
+            var old_size = old_sizes.get(tab_id);
+            if(old_size) {
+                old_sizes.erase(tab_id);
+                chrome.windows.getCurrent(function(win) {
+                    chrome.windows.update(win.id, old_size);
+                });
+            }
+        }
+        function resizeWindow(tab_id, el_id, auto_resto) {
+            var obj = objects.get(tab_id);
+            var dims = obj.elements[el_id];
+            var pad = obj.pad;
+            settings.set(tab_id, {restore: auto_resto, last_id: el_id});
+            chrome.windows.getCurrent(function(win) {
+                old_sizes.include(tab_id, {
+                    width: win.width,
+                    height: win.height
+                });
+                chrome.windows.update(win.id, {
+                    width: dims.w + pad.x + pad.sb,
+                    height: dims.h + pad.y + pad.sb
+                }, function() { // do scroll as a callback, b/c scrolling can depend on the resize
+                    chrome.tabs.sendRequest(tab_id, {
+                        action: "scroll",
+                        params: dims
+                    }, generalResponseHandler);
+                });
+            });
+        }
+        
+        // Listen for the content script to send a message to the background page.
+        chrome.extension.onRequest.addListener(onRequest);
+        
+    </script>
+</head>
+<body></body>
+</html>

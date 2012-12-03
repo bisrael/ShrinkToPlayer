@@ -1,0 +1,214 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <!--<link href="s2p.css" type="text/css" ></link>-->
+    <style type="text/css">
+        html {
+    color:#000;
+    background:#FFF;
+}
+body,
+div,
+dl,dt,dd,ul,ol,li,
+h1,h2,h3,h4,h5,h6,
+pre,code,
+form,fieldset,legend,input,button,textarea,
+p,blockquote,th,td {
+    margin:0;
+    padding:0;
+}
+table {
+    border-collapse:collapse;
+    border-spacing:0;
+}
+fieldset,img {
+    border:0;
+}
+address,caption,cite,code,dfn,em,strong,th,var,optgroup {
+    font-style:inherit;
+    font-weight:inherit;
+}
+del,ins {
+    text-decoration:none;
+}
+li {
+    list-style:none;
+}
+caption,th {
+    text-align:left;
+}
+h1,h2,h3,h4,h5,h6 {
+    font-size:100%;
+    font-weight:normal;
+}
+q:before,q:after {
+    content:'';
+}
+abbr,acronym {
+    border:0;
+    font-variant:normal;
+}
+sup {
+    vertical-align:baseline;
+}
+sub {
+    vertical-align:baseline;
+}
+legend {
+    color:#000;
+}
+input,button,textarea,select,optgroup,option {
+    font-family:inherit;
+    font-size:inherit;
+    font-style:inherit;
+    font-weight:inherit;
+}
+input,button,textarea,select {
+    *font-size:100%;
+}
+        body {
+          padding-top: 1em 0 1em 0;
+          min-width: 200px;
+          min-height: 100px;
+          font-family: "Helvetica";
+          font-size: 0.8em;
+        }
+        td {
+            border: none; 
+        }
+        h1 {
+            margin-top: 0.5em;
+            font-size: 1.2em;
+            margin-bottom: 0.5em;
+            font-weight: bolder;
+        }
+        h3 {
+            font-style: italic;
+        }
+        #buttons {
+            text-align: right;
+            margin-top: 1em;
+        }
+        #choice_list > thead {
+            border-bottom: 1px solid black;
+        }
+        #choice_table, tr, thead, tbody {
+            border: 1px solid black;
+        }
+        #choice_table {
+            border-radius: 5px;
+            width: 95%;
+            margin: 1em 2.5% 1em 2.5%;
+        }
+        th {
+            font-style: italic;
+        }
+        td, th {
+            padding: 2px 2px 2px 2px;
+        }
+        #buttons > div {
+            display: inline-block;
+        }
+        #buttons > div {
+            min-width: 35px;
+            min-height: 20px;
+            background-color: grey;
+            color: white;
+            border: 1px solid black;
+            border-radius: 5px;
+            padding: 0 0.2em 0 0.2em;
+            margin: 2px 0px 2px 0px;
+            cursor: pointer;
+        }
+        #buttons > div:hover, .button:hover {
+            background: -webkit-gradient(
+                linear,
+                left bottom,
+                left top,
+                color-stop(0.37, rgb(214,109,105)),
+                color-stop(0.82, rgb(204,53,73))
+            );
+            color: white;
+            cursor: pointer;
+        }
+        img {
+          margin:5px;
+          border:2px solid black;
+          vertical-align:middle;
+          width:75px;
+          height:75px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Shrink to Player</h1>
+    <h3>Choose an element:</h3>
+    <table id="choice_table">
+        <thead>
+            <tr>
+                <th>Element Id</th>
+                <th>W</th>
+                <th>H</th>
+            </tr>
+        </thead>
+        <tbody id="choices">
+            
+        </tbody>
+    </table>
+    <div id="options">
+        <input type="checkbox" id="auto_resto" />Reset to ID on Reload
+    </div>
+    <div id="buttons">
+        <div id="reset_button">Reset Window Size</div>
+        <div id="no_button">Cancel</div>
+    </div>
+<script src="mootools-1.2.5-core.js"></script>
+<script src="mootools-1.2.4.4-more.js"></script>
+<script>
+    var bkg = chrome.extension.getBackgroundPage();
+    function resizeHandler(ev, tid, eid) {
+        ev.stopPropagation();
+        bkg.resizeWindow(tid, eid, $('auto_resto').get('checked'));
+        window.close();
+    }
+    function cancelHandler(ev) {
+        ev.stopPropagation();
+        window.close();
+    }
+    function resetHandler(ev, tid) {
+        ev.stopPropagation();
+        bkg.resetTabSize(tid);
+        window.close();
+    }
+    chrome.tabs.getSelected(null, function(tab) {
+        console.debug("Tab id: " + tab.id);
+        bkg.sendGet(populateList.bind(this, [tab]));
+    }); 
+    
+    function populateList(tab) {
+        var obj = bkg.objects.get(tab.id);
+        var choice_list = $('choices');
+        for(var i = 0; i < obj.elements.length; ++i) {
+            var size = obj.elements[i];
+            var row = new Element('tr', {
+                'class': 'button'
+            });
+            row.addEvent('click', resizeHandler.bindWithEvent(null, [tab.id, i]));
+            row.adopt(
+                new Element('td', { 'text': size.id }),
+                new Element('td', { 'text': size.w }),
+                new Element('td', { 'text': size.h })
+            );
+            choice_list.grab(row);
+        }
+        $('reset_button').addEvent('click', resetHandler.bindWithEvent(null, tab.id));
+        $('no_button').addEvent('click', cancelHandler);
+        var settings = bkg.settings.get(tab.id) || {};
+        console.debug(settings);
+        $('auto_resto').set('checked', settings.restore);
+    }
+</script>
+
+</body>
+</html>
